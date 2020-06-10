@@ -28,7 +28,7 @@ This is a workaround to a known issue and will be addressed in a future release.
 
 ## Procedure
 
-1. Log onto one of the Applicance nodes
+1. Log onto a Management Applicance node
     - `ssh -i ~/.ssh/id_rsa -o CheckHostIP=no apicadm@example.hostname.com`
     - `sudo -i`
 2. Confirm you are able to run kubectl commands against your Kubernetes cluster
