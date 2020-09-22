@@ -36,7 +36,7 @@ echo
 
 #If user gives the management cluster name check if it exists, else get the name of the management cluster name that is deployed in the namespace
 if [ ! -z "$mgmt_name" ]; then
-  kubectl get mgmt $mgmt_name
+  kubectl get mgmt $mgmt_name -n $ns
   if [ "$?" -eq 1 ]; then
     echo
     echo "Management Subsystem \"$mgmt_name\" does not exist in namespace \"$ns\""
