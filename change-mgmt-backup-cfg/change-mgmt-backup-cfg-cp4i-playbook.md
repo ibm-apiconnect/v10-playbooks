@@ -129,14 +129,24 @@ fi
 
 cluster_name=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep db: | grep -v f: | awk -F ": " '{print $2}')
 image_registry=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep imageRegistry: | grep -v f: | awk -F ": " '{print $2}')
+version=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep version: | grep -v f: | awk -F ": " '{print $2}')
 image_pull_secret=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep -A1 imagePullSecrets | grep -v f: | tail -n1 | awk -F "- " '{print $2}')
 
 echo
 echo "Management name:      $mgmt_name"
 echo "Database name:        $cluster_name"
+echo "Product version:      $version"
 echo "Image Registry:       $image_registry"
 echo "Image Pull Secret:    $image_pull_secret"
 echo
+
+if [[ "$version" == "10.0.1.0"* ]]; then
+    pgo_client_image_tag="sha256:c728dee3458e38efced0474f95cd84f168f065a47761e483cd3551cdde8c824b"
+elif [[ "$version" == "10.0.0.0"* ]]; then
+    pgo_client_image_tag="sha256:3295df5e00f11c072895627fdc5e84ca911c378b5ceb8b7c12ca55dfb7066891"
+else
+    echo "Unsupported product version ${version} for ManagementCluster" && exit 1
+fi 
 
 #Halt script from running and ask user do they want to continue
 read -p "Please review the Management Subsystem CR and confirm these are correct. Proceed? (y/n) " -n 1 -r
@@ -184,7 +194,7 @@ cat <<EOF | kubectl create -f -
                 "containers": [
                     {
                         "name": "pgo",
-                                "image": "$image_registry/ibm-apiconnect-management-pgo-client:ubi7-4.3.1",
+                                "image": "$image_registry/ibm-apiconnect-management-pgo-client@$pgo_client_image_tag",
                         "imagePullPolicy": "IfNotPresent",
                         "env": [
                             {

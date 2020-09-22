@@ -94,7 +94,7 @@ echo
 
 #If user gives the management cluster name check if it exists, else get the name of the management cluster name that is deployed in the namespace
 if [ ! -z "$mgmt_name" ]; then
-  kubectl get mgmt $mgmt_name
+  kubectl get mgmt $mgmt_name -n $ns
   if [ "$?" -eq 1 ]; then
     echo
     echo "Management Subsystem \"$mgmt_name\" does not exist in namespace \"$ns\""
@@ -126,14 +126,24 @@ fi
 
 cluster_name=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep db: | awk -F ": " '{print $2}')
 image_registry=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep imageRegistry: | awk -F ": " '{print $2}')
+version=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep version: | awk -F ": " '{print $2}')
 image_pull_secret=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep -A1 imagePullSecrets | tail -n1 | awk -F "- " '{print $2}')
 
 echo
 echo "Management name:      $mgmt_name"
 echo "Database name:        $cluster_name"
+echo "Product version:      $version"
 echo "Image Registry:       $image_registry"
 echo "Image Pull Secret:    $image_pull_secret"
 echo
+
+if [[ "$version" == "10.0.1.0"* ]]; then
+    pgo_client_image_tag="sha256:c728dee3458e38efced0474f95cd84f168f065a47761e483cd3551cdde8c824b"
+elif [[ "$version" == "10.0.0.0"* ]]; then
+    pgo_client_image_tag="sha256:3295df5e00f11c072895627fdc5e84ca911c378b5ceb8b7c12ca55dfb7066891"
+else
+    echo "Unsupported product version ${version} for ManagementCluster" && exit 1
+fi 
 
 #Halt script from running and ask user do they want to continue
 read -p "Please review the Management Subsystem CR and confirm these are correct. Proceed? (y/n) " -n 1 -r
@@ -145,28 +155,6 @@ fi
 
 echo "Creating copy of Management CR --> mgmt_cr.yaml"
 kubectl get mgmt $mgmt_name -n $ns -o yaml > mgmt_cr.yaml
-
-#Scaling down the apic operator to 0. This is because if we have the operator running it will not allow us to delete a management cluster deployment as it will constantly redeploy the old deployment we want to change
-echo "Scaling down APIC Operator..."
-kubectl scale deploy ibm-apiconnect --replicas=0 -n $ns
-if [ "$?" -eq 1 ]; then
-  echo "Error scaling down ibm-apiconnect deployment"
-  kubectl get deploy ibm-apiconnect
-  if [ "$?" -eq 1 ]; then
-    echo
-    read -p "If running the APIC Operator locally, please manually stop the APIC Operator now. Proceed when stopped. Proceed? (y/n) " -n 1 -r
-    echo
-
-    if [[ ! $REPLY =~ ^[Yy]$ ]]
-    then
-        echo "Answer was: $REPLY"
-        echo
-        abort
-    fi
-  else
-    exit 1
-  fi
-fi
 
 #Creating a pgo client pod so that it will allow us to interface with the postgres operator to allow us to create a new management cluster with the new desired/updated config
 echo "Creating PGO client pod..."
@@ -203,7 +191,7 @@ cat <<EOF | kubectl create -f -
                 "containers": [
                     {
                         "name": "pgo",
-                                "image": "$image_registry/ibm-apiconnect-management-pgo-client:ubi7-4.3.1",
+                        "image": "$image_registry/ibm-apiconnect-management-pgo-client@$pgo_client_image_tag",
                         "imagePullPolicy": "IfNotPresent",
                         "env": [
                             {
@@ -304,7 +292,8 @@ echo
 
 echo "Please update the Management Subystem backup configuration now"
 echo
-echo "Propagate your apicup settings changes to the Applicance nodes with 'apicup subsys install <mgmt>'"
+echo "You can change your Management CR settings via 'kubectl edit mgmt <mgmt_name>'"
+echo "Alternatively, you can update your management_cr.yaml file and update with 'kubectl apply management_cr.yaml'"
 echo
 read -p "Proceed when the configuration is updated. Proceed? (y/n) " -n 1 -r
 echo
@@ -348,6 +337,28 @@ echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]
 then
     abort $REPLY
+fi
+
+#Scaling down the apic operator to 0. This is because if we have the operator running it will not allow us to delete a management cluster deployment as it will constantly redeploy the old deployment we want to change
+echo "Scaling down APIC Operator..."
+kubectl scale deploy ibm-apiconnect --replicas=0 -n $ns
+if [ "$?" -eq 1 ]; then
+  echo "Error scaling down ibm-apiconnect deployment"
+  kubectl get deploy ibm-apiconnect
+  if [ "$?" -eq 1 ]; then
+    echo
+    read -p "If running the APIC Operator locally, please manually stop the APIC Operator now. Proceed when stopped. Proceed? (y/n) " -n 1 -r
+    echo
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Answer was: $REPLY"
+        echo
+        abort
+    fi
+  else
+    exit 1
+  fi
 fi
 
 #Stopping database pods because currently there are no way of updating them so we need to delete and recreate
