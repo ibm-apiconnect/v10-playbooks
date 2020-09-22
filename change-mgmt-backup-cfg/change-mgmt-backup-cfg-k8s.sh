@@ -88,28 +88,6 @@ fi
 echo "Creating copy of Management CR --> mgmt_cr.yaml"
 kubectl get mgmt $mgmt_name -n $ns -o yaml > mgmt_cr.yaml
 
-#Scaling down the apic operator to 0. This is because if we have the operator running it will not allow us to delete a management cluster deployment as it will constantly redeploy the old deployment we want to change
-echo "Scaling down APIC Operator..."
-kubectl scale deploy ibm-apiconnect --replicas=0 -n $ns
-if [ "$?" -eq 1 ]; then
-  echo "Error scaling down ibm-apiconnect deployment"
-  kubectl get deploy ibm-apiconnect
-  if [ "$?" -eq 1 ]; then
-    echo
-    read -p "If running the APIC Operator locally, please manually stop the APIC Operator now. Proceed when stopped. Proceed? (y/n) " -n 1 -r
-    echo
-
-    if [[ ! $REPLY =~ ^[Yy]$ ]]
-    then
-        echo "Answer was: $REPLY"
-        echo
-        abort
-    fi
-  else
-    exit 1
-  fi
-fi
-
 #Creating a pgo client pod so that it will allow us to interface with the postgres operator to allow us to create a new management cluster with the new desired/updated config
 echo "Creating PGO client pod..."
 cat <<EOF | kubectl create -f -
@@ -291,6 +269,28 @@ echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]
 then
     abort $REPLY
+fi
+
+#Scaling down the apic operator to 0. This is because if we have the operator running it will not allow us to delete a management cluster deployment as it will constantly redeploy the old deployment we want to change
+echo "Scaling down APIC Operator..."
+kubectl scale deploy ibm-apiconnect --replicas=0 -n $ns
+if [ "$?" -eq 1 ]; then
+  echo "Error scaling down ibm-apiconnect deployment"
+  kubectl get deploy ibm-apiconnect
+  if [ "$?" -eq 1 ]; then
+    echo
+    read -p "If running the APIC Operator locally, please manually stop the APIC Operator now. Proceed when stopped. Proceed? (y/n) " -n 1 -r
+    echo
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Answer was: $REPLY"
+        echo
+        abort
+    fi
+  else
+    exit 1
+  fi
 fi
 
 #Stopping database pods because currently there are no way of updating them so we need to delete and recreate

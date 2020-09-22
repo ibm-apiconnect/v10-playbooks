@@ -1,4 +1,4 @@
-# Steps to change DatabaseBackup configuration in the Management Subsystem for Kubernetes Installations
+# Steps to change DatabaseBackup configuration in the Management Subsystem for CP4I Installations
 
 The following are steps and a script to allow you to change the `DatabaseBackup` configuration in the Management Subsystem.
 
@@ -97,7 +97,7 @@ echo
 
 #If user gives the management cluster name check if it exists, else get the name of the management cluster name that is deployed in the namespace
 if [ ! -z "$mgmt_name" ]; then
-  kubectl get mgmt $mgmt_name
+  kubectl get mgmt $mgmt_name -n $ns
   if [ "$?" -eq 1 ]; then
     echo
     echo "Management Subsystem \"$mgmt_name\" does not exist in namespace \"$ns\""
@@ -127,9 +127,9 @@ then
     abort $REPLY
 fi
 
-cluster_name=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep db: | awk -F ": " '{print $2}')
-image_registry=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep imageRegistry: | awk -F ": " '{print $2}')
-image_pull_secret=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep -A1 imagePullSecrets | tail -n1 | awk -F "- " '{print $2}')
+cluster_name=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep db: | grep -v f: | awk -F ": " '{print $2}')
+image_registry=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep imageRegistry: | grep -v f: | awk -F ": " '{print $2}')
+image_pull_secret=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep -A1 imagePullSecrets | grep -v f: | tail -n1 | awk -F "- " '{print $2}')
 
 echo
 echo "Management name:      $mgmt_name"
@@ -148,28 +148,6 @@ fi
 
 echo "Creating copy of Management CR --> mgmt_cr.yaml"
 kubectl get mgmt $mgmt_name -n $ns -o yaml > mgmt_cr.yaml
-
-#Scaling down the apic operator to 0. This is because if we have the operator running it will not allow us to delete a management cluster deployment as it will constantly redeploy the old deployment we want to change
-echo "Scaling down APIC Operator..."
-kubectl scale deploy ibm-apiconnect --replicas=0 -n $ns
-if [ "$?" -eq 1 ]; then
-  echo "Error scaling down ibm-apiconnect deployment"
-  kubectl get deploy ibm-apiconnect
-  if [ "$?" -eq 1 ]; then
-    echo
-    read -p "If running the APIC Operator locally, please manually stop the APIC Operator now. Proceed when stopped. Proceed? (y/n) " -n 1 -r
-    echo
-
-    if [[ ! $REPLY =~ ^[Yy]$ ]]
-    then
-        echo "Answer was: $REPLY"
-        echo
-        abort
-    fi
-  else
-    exit 1
-  fi
-fi
 
 #Creating a pgo client pod so that it will allow us to interface with the postgres operator to allow us to create a new management cluster with the new desired/updated config
 echo "Creating PGO client pod..."
@@ -307,8 +285,8 @@ echo
 
 echo "Please update the Management Subystem backup configuration now"
 echo
-echo "You can change your Management CR settings via 'kubectl edit mgmt <mgmt_name>'"
-echo "Alternatively, you can update your management_cr.yaml file and update with 'kubectl apply -f management_cr.yaml'"
+echo "You can change your Management CR settings via 'kubectl edit mgmt ${mgmt_name}'"
+echo "Alternatively, you can update your management_cr.yaml file and update with 'kubectl apply management_cr.yaml'"
 echo
 read -p "Proceed when the configuration is updated. Proceed? (y/n) " -n 1 -r
 echo
@@ -352,6 +330,28 @@ echo
 if [[ ! $REPLY =~ ^[Yy]$ ]]
 then
     abort $REPLY
+fi
+
+#Scaling down the apic operator to 0. This is because if we have the operator running it will not allow us to delete a management cluster deployment as it will constantly redeploy the old deployment we want to change
+echo "Scaling down APIC Operator..."
+kubectl scale deploy ibm-apiconnect --replicas=0 -n $ns
+if [ "$?" -eq 1 ]; then
+  echo "Error scaling down ibm-apiconnect deployment"
+  kubectl get deploy ibm-apiconnect
+  if [ "$?" -eq 1 ]; then
+    echo
+    read -p "If running the APIC Operator locally, please manually stop the APIC Operator now. Proceed when stopped. Proceed? (y/n) " -n 1 -r
+    echo
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        echo "Answer was: $REPLY"
+        echo
+        abort
+    fi
+  else
+    exit 1
+  fi
 fi
 
 #Stopping database pods because currently there are no way of updating them so we need to delete and recreate

@@ -24,7 +24,7 @@ This is a workaround to a known issue and will be addressed in a future release.
   - Postgres Database logs
     - eg. `kubectl logs management-8359bacc-postgres-584c88dcd6-pn676 -c database`
   
-- How long will this procedure be needed?: **This is being addressed in a future release.**
+- How long will this procedure be needed?: **This playbook is no longer needed in v10.0.1.0**
 
 ## Procedure
 
@@ -42,7 +42,7 @@ This is a workaround to a known issue and will be addressed in a future release.
 3. Copy the script below onto the Appliance node you are currently logged into.
 4. Name it `change-mgmtbackup-cfg.sh`
 5. `chmod +x change-mgmtbackup-cfg.sh`
-6. `./change-mgmtbackup-cfg.sh <namespace>`
+6. `./change-mgmtbackup-cfg.sh <namespace> <mgmt_name>`
   - where `<namespace>` is the namespace where your Management Subsystem is deployed eg. `default`
 
 ## Summary of what the script does:
