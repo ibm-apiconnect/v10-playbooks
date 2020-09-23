@@ -129,8 +129,13 @@ fi
 
 cluster_name=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep db: | grep -v f: | awk -F ": " '{print $2}')
 image_registry=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep imageRegistry: | grep -v f: | awk -F ": " '{print $2}')
+appVersion=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep appVersion: | grep -v f: | awk -F ": " '{print $2}')
 version=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep version: | grep -v f: | awk -F ": " '{print $2}')
 image_pull_secret=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep -A1 imagePullSecrets | grep -v f: | tail -n1 | awk -F "- " '{print $2}')
+
+if [ ! -z $appVersion ]; then
+    version=$appVersion
+fi
 
 echo
 echo "Management name:      $mgmt_name"

@@ -5,9 +5,14 @@ ns=$1
 
 mgmt_name=$(kubectl get mgmt -n $ns -o yaml | grep name: | head -n1 | awk -F ": " '{print $2}')
 cluster_name=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep db: | awk -F ": " '{print $2}')
+appVersion=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep appVersion: | awk -F ": " '{print $2}')
 version=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep version: | awk -F ": " '{print $2}')
 image_registry=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep imageRegistry: | awk -F ": " '{print $2}')
 image_pull_secret=$(kubectl get mgmt $mgmt_name -n $ns  -o yaml | grep -A1 imagePullSecrets | tail -n1 | awk -F "- " '{print $2}')
+
+if [ ! -z $appVersion ]; then
+    version=$appVersion
+fi
 
 echo
 echo "Management name:      $mgmt_name"
