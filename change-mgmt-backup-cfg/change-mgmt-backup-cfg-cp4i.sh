@@ -35,6 +35,27 @@ echo
 echo "This script will allow you to change the Management Subsystem DatabaseBackup configuration in your APIConnect Cluster capability"
 echo
 
+echo "Searching for ibm-apiconnect operator deploy..."
+
+oc_ns="openshift-operators"
+op_ns="$ns"
+op_out=$(kubectl get deploy ibm-apiconnect -n $op_ns > /dev/null 2>&1)
+
+if [ "$?" -eq 1 ]; then
+    op_ns="$oc_ns"
+    op_out=$(kubectl get deploy ibm-apiconnect -n $oc_ns)
+    if [ "$?" -eq 1 ]; then
+        echo
+        echo "Could not find APIConnect Operator in namespace \"$ns\" or \"$oc_ns\""
+        echo
+        abort
+    fi
+fi
+
+echo "Found deploy in namespace: $op_ns"
+echo
+kubectl get deploy ibm-apiconnect -n $op_ns
+
 #If user gives the apic cluster name check if it exists, else get the name of the apic cluster name that is deployed in the namespace
 if [ -z "$apic_name" ]; then
   apic_name=$(kubectl get apiconnectcluster -n $ns -o yaml | grep name: | head -n1 | awk -F ": " '{print $2}')
@@ -47,8 +68,7 @@ if [ -z "$apic_name" ]; then
   fi
 fi
 
-echo "APIConnect Cluster: "
-kubectl get apiconnectcluster $apic_name -n $ns
+apic_out=$(kubectl get apiconnectcluster $apic_name -n $ns)
 if [ "$?" -eq 1 ]; then
     echo
     echo "APIConnect Cluster \"$apic_name\" does not exist in namespace \"$ns\""
@@ -60,14 +80,45 @@ if [ -z "$mgmt_name" ]; then
     mgmt_name="${apic_name}-mgmt"
 fi
 
-echo
-echo "APIConnect Management Cluster: "
-kubectl get managementcluster ${mgmt_name} -n $ns
+mgmt_out=$(kubectl get managementcluster ${mgmt_name} -n $ns)
 if [ "$?" -eq 1 ]; then
     echo
     echo "Management Cluster \"$mgmt_name\" does not exist in namespace \"$ns\""
     echo
     abort
+fi
+
+echo
+echo "APIConnect Cluster: "
+echo "$apic_out"
+
+if echo "$apic_out" | grep -q Pending; then
+    #Halt script from running and ask user do they want to continue
+    echo
+    read -p "WARNING: APIConnect cluster $apic_name is NOT READY. Proceed? (y/n) " -n 1 -r
+    echo
+
+    #If the user replies with anything other than Y or y stop the script
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        abort $REPLY
+    fi
+fi
+
+echo
+echo "APIConnect Management subsystem: "
+echo "$mgmt_out"
+if echo "$mgmt_out" | grep -q Pending; then
+    echo
+    #Halt script from running and ask user do they want to continue
+    read -p "WARNING: Management subsystem $mgmt_name is NOT READY. Proceed? (y/n) " -n 1 -r
+    echo
+
+    #If the user replies with anything other than Y or y stop the script
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        abort $REPLY
+    fi
 fi
 
 echo
@@ -309,7 +360,7 @@ while [[ ! $REPLY =~ ^[Yy]$ ]]; do
         if [  "$?" -eq 1 ]; then
             echo "WARNING: could not find secret \"$credentials\" in namespace \"$ns\""
             echo
-            echo "Please create credentials secret now"
+            echo "Please create credentials secret now. Docs link: https://www.ibm.com/support/knowledgecenter/en/SSMNED_v10/com.ibm.apic.install.doc/tapic_db_backup_restore_apic.html"
             echo
         fi
     fi
@@ -328,10 +379,10 @@ fi
 
 #Scaling down the apic operator to 0. This is because if we have the operator running it will not allow us to delete a management cluster deployment as it will constantly redeploy the old deployment we want to change
 echo "Scaling down APIC Operator..."
-kubectl scale deploy ibm-apiconnect --replicas=0 -n $ns
+kubectl scale deploy ibm-apiconnect --replicas=0 -n $op_ns
 if [ "$?" -eq 1 ]; then
   echo "Error scaling down ibm-apiconnect deployment"
-  kubectl get deploy ibm-apiconnect
+  kubectl get deploy ibm-apiconnect -n $op_ns
   if [ "$?" -eq 1 ]; then
     echo
     read -p "If running the APIC Operator locally, please manually stop the APIC Operator now. Proceed when stopped. Proceed? (y/n) " -n 1 -r
@@ -354,7 +405,7 @@ echo "Stopping database pods..."
 kubectl exec -it $pgo_client_pod_name -n $ns -- pgo delete cluster $cluster_name -n $ns --keep-data --no-prompt
 if [ "$?" -eq 1 ]; then
   echo "Error stopping database pods" && exit 1
-  kubectl scale deploy ibm-apiconnect --replicas=1 -n $ns
+  kubectl scale deploy ibm-apiconnect --replicas=1 -n $op_ns
   [[ "$?" -eq 1 ]] && echo "Error scaling up ibm-apiconnect deployment" && exit 1
 fi
 
@@ -371,10 +422,10 @@ echo "Scaling up APIC Operator..."
 echo
 
 #Scaling the apiconnect operator back up. When the operator has scaled back up it will see that it is missing postgres deployments and will recreate them
-kubectl scale deploy ibm-apiconnect --replicas=1 -n $ns
+kubectl scale deploy ibm-apiconnect --replicas=1 -n $op_ns
 if [ "$?" -eq 1 ]; then
   echo "Error scaling up ibm-apiconnect deployment"
-  kubectl get deploy ibm-apiconnect -n $ns
+  kubectl get deploy ibm-apiconnect -n $op_ns
   if [ "$?" -eq 1 ]; then
     read -p "If running the APIC Operator locally, please manually start the APIC Operator. Proceed when started. Proceed? (y/n) " -n 1 -r
     echo
@@ -406,5 +457,29 @@ done
 echo "ManagementCluster $mgmt_name ready"
 echo
 
-echo "Success"
+echo
+echo "Backup settings successfully updated. Now polling for automatic Management subsystem backup completion..."
+echo 
+
+COUNTER=0
+kubectl get job -n $ns | grep backrest-backup | grep -q "1/1" > /dev/null 2>&1
+while [[ "$?" -eq 1 && $COUNTER -lt 120 ]]; do
+  echo "Waiting for automatic Management subsystem backup to be Ready..."
+  sleep 5
+  let COUNTER+=1 
+  kubectl get job -n $ns | grep backrest-backup  | grep -q "1/1" > /dev/null 2>&1
+done
+
+kubectl get job -n $ns | grep backrest-backup | grep -q "1/1" > /dev/null 2>&1
+if [ "$?" -eq 1 ]; then
+    echo "Automatic Management backup is still not Ready. However, backup settings successfully updated"
+    echo "Please continue to monitor the status of the backup with command 'kubectl get job -n $ns | grep backrest-backup'"
+
+    echo "Exiting..."
+else
+    echo "Automatic Management subsystem backup ready"
+    echo
+    echo "Success"
+fi
+
 exit 0
