@@ -239,7 +239,7 @@ pitr_target=""
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
   pitr_target=$(date -r $rangeEnd '+%F %T%z')
-  pitr_target=${pitr_target::-2}
+  pitr_target=${pitr_target::${#pitr_target}-2}
 else
   pitr_target=$(date -d @$rangeEnd '+%F %T%z')
   pitr_target=${pitr_target::-2}
