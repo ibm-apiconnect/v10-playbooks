@@ -2,8 +2,7 @@
 Operator Playbooks for APIC v10
 
 # Steps to recover Management Subsystem in the event of failed ManagementRestore
-
-- [In CP4i installations](recover-failed-mgmt-restore/recover-failed-mgmt-restore-cp4i.md)
+[Steps to recover Management Subsystem in the event of failed ManagementRestore](recover-failed-mgmt-restore/recover-failed-mgmt-restore.md)
 
 
 ---

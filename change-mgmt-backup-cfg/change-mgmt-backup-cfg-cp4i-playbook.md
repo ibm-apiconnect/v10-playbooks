@@ -55,8 +55,8 @@ This is a workaround to a known issue and has been addressed in v10.0.1.0
 3. Copy the script below to the location where you wish to run the script from.
 4. Name the script `change-mgmtbackup-cfg.sh`
 5. In a terminal, run `chmod +x change-mgmtbackup-cfg.sh`
-6. In a terminal, run `./change-mgmtbackup-cfg.sh <namespace> <mgmt_name>`
-  - where `<namespace>` is the names˜pace where your Management Subsystem is deployed eg. `default`
+6. In a terminal, run `./change-mgmtbackup-cfg.sh <namespace> <APIC_name>`
+  - where `<namespace>` is the namespace/project where your APIConnect Cluster is deployed eg. `default`
 
 ## Summary of what the script does:
 

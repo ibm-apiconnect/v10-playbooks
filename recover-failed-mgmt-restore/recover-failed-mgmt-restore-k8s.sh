@@ -3,10 +3,10 @@
 fn=$(echo $(basename $0))
 
 ns=$1
-[[ -z "$ns" ]] && echo "Usage: $fn <namespace> <apic_name>" && exit 1
+op_ns=$ns
+[[ -z "$ns" ]] && echo "Usage: $fn <namespace> <mgmt_name>" && exit 1
 
-apic_name=$2
-mgmt_name=$3
+mgmt_name=$2
 
 abort() {
     echo "Answer was: $1"
@@ -15,64 +15,53 @@ abort() {
 }
 
 echo
-echo "This script will walkthrough failed restore recovery procedure for your Management subsystem in your APIConnect Cluster capability"
+echo "This script will walkthrough failed restore recovery procedure for your Management subsystem in your APIConnect Cluster"
 echo
 
-echo "Searching for ibm-apiconnect operator deploy..."
+apic_name=""
+has_toplevel_cr=false
+apic_instances=$(kubectl get apiconnectcluster -n $ns | tail -n-1)
+num_apic=$(echo "$apic_instances" | wc -l)
 
-oc_ns="openshift-operators"
-op_ns="$ns"
-op_out=$(kubectl get deploy ibm-apiconnect -n $op_ns > /dev/null 2>&1)
+if [ "$num_apic" -gt 0 ]; then
+  has_toplevel_cr=true
+  apic_name=$(echo "$apic_instances" | awk '{print $1}')
 
-if [ "$?" -eq 1 ]; then
-    op_ns="$oc_ns"
-    op_out=$(kubectl get deploy ibm-apiconnect -n $oc_ns)
-    if [ "$?" -eq 1 ]; then
-        echo
-        echo "Could not find APIConnect Operator in namespace \"$ns\" or \"$oc_ns\""
-        echo
-        abort
-    fi
-fi
-
-echo "Found deploy in namespace: $op_ns"
-echo
-kubectl get deploy ibm-apiconnect -n $op_ns
-
-#If user gives the apic cluster name check if it exists, else get the name of the apic cluster name that is deployed in the namespace
-if [ -z "$apic_name" ]; then
-  apic_name=$(kubectl get apiconnectcluster -n $ns -o yaml | grep name: | head -n1 | awk -F ": " '{print $2}')
-
-  if [ -z "$apic_name" ]; then
-    echo
-    echo "No APIConnect Clusters in namespace \"$ns\""
-    echo
-    abort
+  if [ -z "$mgmt_name" ]; then
+      mgmt_name="${apic_name}-mgmt"
   fi
-fi
-
-if [ -z "$mgmt_name" ]; then
-    mgmt_name="${apic_name}-mgmt"
 fi
 
 mgmt_out=$(kubectl get managementcluster ${mgmt_name} -n $ns)
 if [ "$?" -eq 1 ]; then
     echo
     echo "Management Cluster \"$mgmt_name\" does not exist in namespace \"$ns\""
-    echo "Please re-run the script '$fn $ns $apic_name <mgmt_name> and fill in the name of the ManagementCluster subsystem in this namespace"
     echo
     abort
 fi
 
-echo
-echo "Please update your APIConnect Cluster spec via the command-line with 'kubectl edit apiconnectcluster $apic_name -n $ns'"
-echo "Please add the following template section to your spec:"
+if $has_toplevel_cr; then
+  echo
+  echo "Please update your APIConnectCluster spec via the command-line with 'kubectl edit apiconnectcluster $apic_name -n $ns'"
+  echo "Please add the following template section to your spec:"
 cat << EOF
 spec:
   template:
   - name: mgmt-lur-schema
     enabled: false
 EOF
+else
+  echo
+  echo "Please update your ManagementCluster spec via the command-line with 'kubectl edit managementcluster $mgmt_name -n $ns'"
+  echo "Please add the following template section to your spec:"
+cat << EOF
+spec:
+  template:
+  - name: lur-schema
+    enabled: false
+EOF
+fi
+
 echo
 read -p "Proceed when the configuration is updated. Proceed? (y/n) " -n 1 -r
 echo
@@ -320,15 +309,27 @@ done
 echo "ManagementCluster $mgmt_name ready"
 echo
 
-echo
-echo "Please now remove your change to the APIConnect Cluster spec via the command-line with 'kubectl edit apiconnectcluster $apic_name -n $ns'"
-echo "Please remove the template section from your spec:"
+if $has_toplevel_cr; then
+  echo
+  echo "Please now remove your change to the APIConnectCluster spec via the command-line with 'kubectl edit apiconnectcluster $apic_name -n $ns'"
+  echo "Please remove the template section from your spec:"
 cat << EOF
 spec:
   template:
   - name: mgmt-lur-schema
     enabled: false
 EOF
+else 
+  echo
+  echo "Please now remove your change to the ManagementCluster spec via the command-line with 'kubectl edit managementcluster $mgmt_name -n $ns'"
+  echo "Please remove the template section from your spec:"
+cat << EOF
+spec:
+  template:
+  - name: lur-schema
+    enabled: false
+EOF
+fi
 echo
 read -p "Proceed when the configuration is updated. Proceed? (y/n) " -n 1 -r
 echo

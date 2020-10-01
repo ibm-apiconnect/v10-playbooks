@@ -53,10 +53,10 @@ This is a workaround to a known issue and will be addressed in a future release.
 1. Checks current configuration
 2. Scales down the API Connect Operator as we don't want the Operator reconciling any changes we make just yet
 3. Creates the pgo-client deploy - this is a pod that allows us to interface with the Postgres Operator
-4. Asks the customer to change their backup configuration before proceeding
+4. Please refer to the Knowledge Center for procedure on configuring backup settings for Management subsystem: https://www.ibm.com/support/knowledgecenter/en/SSMNED_v10/com.ibm.apic.install.doc/tapic_db_backup_restore_apic.html
 5. Once updated and customer agrees to proceed, the current postgres deployment is removed (no data is lost)
 6. Scales up the API Connect Operator
-7. The Operator should reconcile everything back to normal, including creating the postgres deployment, with the new backup configuration
+7. The Operator reconciles everything back to normal, including creating the postgres deployment, with the new backup configuration
 
 ```
 #!/bin/bash
