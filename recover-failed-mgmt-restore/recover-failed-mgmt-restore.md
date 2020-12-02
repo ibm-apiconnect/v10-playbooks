@@ -6,6 +6,8 @@ This is a workaround to a known issue and will be addressed in a future release.
 
 **Note: This procedure is only compatible with Linux and Mac environments.**
 
+**Note: This procedure is only compatible with APIConnect v10.0.1.0 and above.**
+
 ## Scenarios when this procedure and script are needed
 
 - ManagementRestore stuck in `Pending` state for an unreasonable amount of time (eg. 2hrs+)
