@@ -1,5 +1,7 @@
 # Steps to change DatabaseBackup configuration in the Management Subsystem for Kubernetes Installations
 
+:warning: **NOT COMPATIBLE WITH VERSIONS V10.0.1.0 OR LATER** :warning:
+
 The following are steps and a script to allow you to change the `DatabaseBackup` configuration in the Management Subsystem.
 
 This is a workaround to a known issue and will be addressed in a future release.
