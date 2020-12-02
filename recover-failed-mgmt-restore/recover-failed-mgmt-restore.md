@@ -1,12 +1,12 @@
 # Steps to recover Management Subsystem in the event of failed ManagementRestore
 
+:warning: **NOT COMPATIBLE WITH v10.0.0.0** :warning:
+
 The following are steps and a script to allow you to recover the Management Subsystem in the event ManagementRestore fails and ManagementCluster is NOT READY.
 
 This is a workaround to a known issue and will be addressed in a future release.
 
 **Note: This procedure is only compatible with Linux and Mac environments.**
-
-**Note: This procedure is only compatible with APIConnect v10.0.1.0 and above.**
 
 ## Scenarios when this procedure and script are needed
 
