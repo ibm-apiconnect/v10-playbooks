@@ -1,12 +1,12 @@
 # Steps to change DatabaseBackup configuration in the Management Subsystem for CP4I Installations
 
+:warning: **NOT COMPATIBLE WITH VERSIONS V10.0.1.0 OR LATER** :warning:
+
 The following are steps and a script to allow you to change the `DatabaseBackup` configuration in the Management Subsystem section of your APIConnect Cluster capability in CP4i installations.
 
 Please refer to the Knowledge Center for procedure on configuring backup settings for Management subsystem: https://www.ibm.com/support/knowledgecenter/en/SSMNED_v10/com.ibm.apic.install.doc/tapic_db_backup_restore_apic.html
 
 This is a workaround to a known issue and has been addressed in v10.0.1.0
-
-**Note: This script is unsupported for APIConnect Operator versions v10.0.1.0 or later.**
 
 **This procedure is only compatible with Linux and Mac environments.**
 
